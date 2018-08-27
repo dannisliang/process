@@ -170,39 +170,43 @@ int main(int argc, char* argv[]) {
 		strcpy(buffer+length, "process.config");
 		if (!access(buffer, 0)) {
 			struct _stat info;
+			bool error = false;
 			_stat(buffer, &info);
-			FILE * fconfig = fopen(buffer, "rb");
-			if (fconfig) {
-				auto array = boost::shared_array<char>(new char[info.st_size]);
-				for (int aready_rd = 0; aready_rd != info.st_size; ) {
-					aready_rd += fread(array.get()+aready_rd, sizeof(char), info.st_size-aready_rd, fconfig);
-				}
-				fclose(fconfig);
-				bool error = false;
-				setting = boost::make_shared<struct config>();
-				try {
-					auto js = json::parse(boost::string_view(array.get(), info.st_size));
-					if (auto logptr = js.find("log"); logptr != js.end()) setting->log = *logptr;
-					if (auto runableptr = js.find("target"); runableptr != js.end()) setting->runable = *runableptr;
-					if (auto rtcodeptr = js.find("code"); rtcodeptr != js.end()) {
-						if (rtcodeptr->is_number()) {
-							setting->rtcode.push_back(rtcodeptr->get<int>());
-						} else if (rtcodeptr->is_array()) {
-							setting->rtcode.reserve(rtcodeptr->size());
-							for (auto it = rtcodeptr->begin(); it != rtcodeptr->end(); ++ it) {
-								setting->rtcode.push_back(it->get<int>());
-							}
-						} else {
-							error = true;
-						}
+			if (info.st_size < MAX_PATH * 3) {
+				FILE * fconfig = fopen(buffer, "rb");
+				if (fconfig) {
+					auto array = boost::shared_array<char>(new char[info.st_size]);
+					for (int aready_rd = 0; aready_rd != info.st_size; ) {
+						aready_rd += fread(array.get()+aready_rd, sizeof(char), info.st_size-aready_rd, fconfig);
 					}
-				} catch(const std::exception& e) {
-					error = true;
+					fclose(fconfig);
+					setting = boost::make_shared<struct config>();
+					try {
+						auto js = json::parse(boost::string_view(array.get(), info.st_size));
+						if (auto logptr = js.find("log"); logptr != js.end()) setting->log = *logptr;
+						if (auto runableptr = js.find("target"); runableptr != js.end()) setting->runable = *runableptr;
+						if (auto rtcodeptr = js.find("code"); rtcodeptr != js.end()) {
+							if (rtcodeptr->is_number()) {
+								setting->rtcode.push_back(rtcodeptr->get<int>());
+							} else if (rtcodeptr->is_array()) {
+								setting->rtcode.reserve(rtcodeptr->size());
+								for (auto it = rtcodeptr->begin(); it != rtcodeptr->end(); ++ it) {
+									setting->rtcode.push_back(it->get<int>());
+								}
+							} else {
+								error = true;
+							}
+						}
+					} catch(const std::exception& e) {
+						error = true;
+					}
 				}
-				if (error) {
-					MessageBox(nullptr, "不合法的配置文件！", "错误", MB_OK|MB_ICONERROR);
-					return 0;
-				}
+			} else {
+				error = true;
+			}
+			if (error) {
+				MessageBox(nullptr, "不合法的配置文件！", "错误", MB_OK|MB_ICONERROR);
+				return 0;
 			}
 		} else {
 			if (sep[1] == 'p' && stricmp(sep+1, "process.exe")) {
