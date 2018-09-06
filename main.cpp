@@ -105,8 +105,8 @@ void protect(boost::shared_ptr<struct config> setting) {
 
 	if (!ls) MessageBox(nullptr, "创建日志失败！", "错误", MB_OK|MB_ICONERROR);
 
-	bool shoudQuit = false;
-	auto thread = boost::thread([&shoudQuit, setting] {
+	bool shouldQuit = false;
+	auto thread = boost::thread([&shouldQuit, setting] {
 		WNDCLASSEX wx{};
 		wx.lpfnWndProc = tray;
 		wx.lpszClassName = "super deamon";
@@ -129,9 +129,9 @@ void protect(boost::shared_ptr<struct config> setting) {
 		}
 		Shell_NotifyIcon(NIM_ADD, &notify);
 		for (MSG msg; GetMessage(&msg, hmessage, 0, 0) > 0; DispatchMessage(&msg)) TranslateMessage(&msg);
-		if (!shoudQuit) Shell_NotifyIcon(NIM_DELETE, &notify);
+		if (!shouldQuit) Shell_NotifyIcon(NIM_DELETE, &notify);
 		UnregisterClass(wx.lpszClassName, GetModuleHandle(nullptr));
-		shoudQuit = true;
+		shouldQuit = true;
 	});
 
 	logging::add_common_attributes();
@@ -139,7 +139,7 @@ void protect(boost::shared_ptr<struct config> setting) {
 
 	std::error_code error_code;
 	auto rtcodes = setting->rtcode;
-	while (!shoudQuit) {
+	while (!shouldQuit) {
 		BOOST_LOG_SEV(lg, logging::trivial::info) << "尝试启动（第" << ++i << "次）";
 		if (ls) ls->flush();
 		process_start = ch::steady_clock::now();
@@ -153,9 +153,9 @@ void protect(boost::shared_ptr<struct config> setting) {
 		if (ls) ls->flush();
 		if (std::find(rtcodes.begin(), rtcodes.end(), rtcode) != rtcodes.end()) break;
 	}
-	if (!shoudQuit) {
+	if (!shouldQuit) {
 		SendMessage(hmessage, WM_COMMAND, 0, 0);
-		while (!shoudQuit) Sleep(10);
+		while (!shouldQuit) Sleep(10);
 	}
 }
 
